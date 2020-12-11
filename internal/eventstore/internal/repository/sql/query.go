@@ -154,16 +154,14 @@ func getCondition(filter *es_models.Filter) (condition string) {
 	if field == "" || operation == "" {
 		return ""
 	}
-	format := getConditionFormat(filter.GetOperation())
-
-	return fmt.Sprintf(format, field, operation)
+	return getConditionFormat(filter.GetOperation(), field, operation)
 }
 
-func getConditionFormat(operation es_models.Operation) string {
+func getConditionFormat(operation es_models.Operation, field, operationText string) string {
 	if operation == es_models.Operation_In {
-		return "%s %s ANY(?)"
+		return fmt.Sprintf("%s IN (?)", field)
 	}
-	return "%s %s ?"
+	return fmt.Sprintf("%s %s ?", field, operationText)
 }
 
 func getField(field es_models.Field) string {
