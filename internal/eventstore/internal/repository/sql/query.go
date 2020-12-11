@@ -11,7 +11,6 @@ import (
 	z_errors "github.com/caos/zitadel/internal/errors"
 	"github.com/caos/zitadel/internal/eventstore/models"
 	es_models "github.com/caos/zitadel/internal/eventstore/models"
-	"github.com/lib/pq"
 )
 
 const (
@@ -61,7 +60,7 @@ func buildQuery(queryFactory *models.SearchQueryFactory) (query string, limit ui
 }
 
 func prepareCondition(filters []*models.Filter) (clause string, values []interface{}) {
-	values = make([]interface{}, len(filters))
+	values = make([]interface{}, 0, len(filters))
 	clauses := make([]string, len(filters))
 
 	if len(filters) == 0 {
@@ -69,18 +68,106 @@ func prepareCondition(filters []*models.Filter) (clause string, values []interfa
 	}
 	for i, filter := range filters {
 		value := filter.GetValue()
-		switch value.(type) {
-		case []bool, []float64, []int64, []string, []models.AggregateType, []models.EventType, *[]bool, *[]float64, *[]int64, *[]string, *[]models.AggregateType, *[]models.EventType:
-			value = pq.Array(value)
+		listCount := 1
+		switch val := value.(type) {
+		case []bool:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = v
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case []float64:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = v
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case []int64:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = v
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case []string:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = v
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case []models.AggregateType:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = string(v)
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case []models.EventType:
+			list := make([]interface{}, len(val))
+			for i, v := range val {
+				list[i] = string(v)
+			}
+			listCount = len(val)
+			values = append(values, list...)
+		case *[]bool:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = v
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		case *[]float64:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = v
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		case *[]int64:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = v
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		case *[]string:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = v
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		case *[]models.AggregateType:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = string(v)
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		case *[]models.EventType:
+			list := make([]interface{}, len(*val))
+			for i, v := range *val {
+				list[i] = string(v)
+			}
+			listCount = len(*val)
+			values = append(values, list...)
+		default:
+			values = append(values, val)
 		}
 
-		clauses[i] = getCondition(filter)
+		clauses[i] = getCondition(filter, listCount)
 		if clauses[i] == "" {
 			return "", nil
 		}
-		values[i] = value
 	}
 	return " WHERE " + strings.Join(clauses, " AND "), values
+}
+
+func toInterfaceSlice(values ...interface{}) []interface{} {
+	return values
 }
 
 type scan func(dest ...interface{}) error
@@ -148,18 +235,22 @@ func numberPlaceholder(query, old, new string) string {
 	return query
 }
 
-func getCondition(filter *es_models.Filter) (condition string) {
+func getCondition(filter *es_models.Filter, valueCount int) (condition string) {
 	field := getField(filter.GetField())
 	operation := getOperation(filter.GetOperation())
 	if field == "" || operation == "" {
 		return ""
 	}
-	return getConditionFormat(filter.GetOperation(), field, operation)
+	return getConditionFormat(filter.GetOperation(), field, operation, valueCount)
 }
 
-func getConditionFormat(operation es_models.Operation, field, operationText string) string {
+func getConditionFormat(operation es_models.Operation, field, operationText string, valueCount int) string {
 	if operation == es_models.Operation_In {
-		return fmt.Sprintf("%s IN (?)", field)
+		values := "?"
+		for i := 1; i < valueCount; i++ {
+			values = strings.Join([]string{values, "?"}, ", ")
+		}
+		return fmt.Sprintf("%s IN (%s)", field, values)
 	}
 	return fmt.Sprintf("%s %s ?", field, operationText)
 }
