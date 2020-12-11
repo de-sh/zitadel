@@ -805,7 +805,8 @@ func (es *ProjectEventstore) VerifyOIDCClientSecret(ctx context.Context, project
 	}
 
 	if err := crypto.CompareHash(app.OIDCConfig.ClientSecret, []byte(secret), es.passwordAlg); err == nil {
-		return es.setOIDCClientSecretCheckResult(ctx, existingProject, app.AppID, OIDCClientSecretCheckSucceededAggregate)
+		return nil
+		//return es.setOIDCClientSecretCheckResult(ctx, existingProject, app.AppID, OIDCClientSecretCheckSucceededAggregate) //TODO: reanable after new eventstore
 	}
 	if err := es.setOIDCClientSecretCheckResult(ctx, existingProject, app.AppID, OIDCClientSecretCheckFailedAggregate); err != nil {
 		return err
